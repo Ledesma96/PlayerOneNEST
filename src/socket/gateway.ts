@@ -18,6 +18,7 @@ import { User } from 'src/database/schemas/user.schema';
 import { GameDTO } from 'src/game/dto/game.dto';
 import { GameService } from 'src/game/game.service';
 import { MessageService } from 'src/message/message.service';
+import { NotificationService } from 'src/notification/notification.service';
 import { RequestDTO } from 'src/request/dto/request.dto';
 import { RequestService } from 'src/request/request.service';
 import { UserService } from 'src/user/user.service';
@@ -92,7 +93,8 @@ export class Gateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDis
         private readonly requestService: RequestService,
         private readonly messageService: MessageService,
         private readonly chatService: ChatService,
-        private readonly userService: UserService
+        private readonly userService: UserService,
+        private readonly notificationService: NotificationService
     ) { }
 
     // Función auxiliar para convertir grados a radianes
@@ -148,45 +150,76 @@ export class Gateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDis
     }
 
     @SubscribeMessage('create-game')
-    async createGame(
-        @MessageBody() data: GameDTO,
-        @ConnectedSocket() client: Socket
-    ): Promise<void> {
+async createGame(
+    @MessageBody() data: GameDTO,
+    @ConnectedSocket() client: Socket
+): Promise<void> {
+    try {
+        const { games, users, user, gameId } = await this.gameService.createGame(data);
 
-        try {
-            const { games, users, user, gameId } = await this.gameService.createGame(data);
+        // Crear un canal único para el juego
+        const gameRoom = `game-${gameId}`;
+        client.join(gameRoom);
 
-            // Filtrar usuarios dentro de 2 km del creador
-            const nearbyUsers = users.filter(u =>
-                this.calculateDistance(user.location.latitude, user.location.longitude, u.location.latitude, u.location.longitude) <= 2
-            );
+        // Obtener usuarios cercanos al creador del juego
+        const nearbyUsers = users.filter(u =>
+            this.calculateDistance(
+                user.location.latitude,
+                user.location.longitude,
+                u.location.latitude,
+                u.location.longitude
+            ) <= 2
+        );
 
-            // Crear un canal único para el juego con los usuarios cercanos
-            const gameRoom = `game-${gameId}`;
+        // Filtrar los juegos cercanos para cada usuario
+        nearbyUsers.forEach(async u => {
+            const socketId = this.userSockets.get(u._id.toString()); // Obtener socket del usuario
+            if (socketId) {
+                const userSocket = this.server.sockets.sockets.get(socketId); // Obtener socket activo
+                if (userSocket) {
+                    userSocket.join(gameRoom); // Añadir usuario al canal
 
-            // Añadir al creador al canal
-            client.join(gameRoom);
+                    // Juegos cercanos para este usuario
+                    const userGames = games.filter(game =>
+                        this.calculateDistance(
+                            game.location.latitude,
+                            game.location.longitude,
+                            u.location.latitude,
+                            u.location.longitude
+                        ) <= 2
+                    );
+                    this.notificationService.sendNotification(
+                        u._id,
+                        'Nueva solicitud de partida',
+                        'Tienes una nueva solicitud de partida cercana a ti.',
+                        {
+                            action: 'Nuevo', url: 'https://yourdomain.com/promo'
+                        }
+                    );
 
-            // Añadir los sockets de los usuarios cercanos al canal
-            nearbyUsers.forEach(u => {
-                const socketId = this.userSockets.get(u._id.toString()); // Obtener el socket ID del usuario
-                if (socketId) {
-                    const userSocket = this.server.sockets.sockets.get(socketId); // Obtener el socket real del servidor
-                    if (userSocket) {
-                        userSocket.join(gameRoom); // Añadir al usuario al canal específico
-                    }
+                    // Emitir los juegos cercanos al usuario
+                    this.server.to(userSocket.id).emit('send-games', userGames.reverse());
                 }
-            });
+            }
+        });
 
-            // Emitir el juego solo a los usuarios en el canal `gameRoom`
-            this.server.to(gameRoom).emit('send-games', games.reverse());
+        // Emitir juegos al creador
+        const creatorGames = games.filter(game =>
+            this.calculateDistance(
+                game.location.latitude,
+                game.location.longitude,
+                user.location.latitude,
+                user.location.longitude
+            ) <= 2
+        );
+        this.server.to(client.id).emit('send-games', creatorGames.reverse());
 
-        } catch (error) {
-            console.error(error);
-            // Opcionalmente, enviar un error al cliente
-            client.emit('error', { message: error.message });
-        }
+    } catch (error) {
+        console.error(error);
+        client.emit('error', { message: error.message });
     }
+}
+
 
     @SubscribeMessage('create-request')
     async createRequest(

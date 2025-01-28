@@ -13,6 +13,7 @@ import { NotificationService } from './notification.service';
     AuthModule
   ],
   providers: [NotificationService],
-  controllers: [NotificationController]
+  controllers: [NotificationController],
+  exports:[NotificationService]
 })
 export class NotificationModule {}

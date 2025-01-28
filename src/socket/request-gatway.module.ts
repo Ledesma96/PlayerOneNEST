@@ -7,6 +7,7 @@ import { Request, RequestSchema } from "src/database/schemas/request.schema";
 import { User, UserSchema } from "src/database/schemas/user.schema";
 import { GameModule } from "src/game/game.module";
 import { MessageModule } from "src/message/message.module";
+import { NotificationModule } from "src/notification/notification.module";
 import { RequestModule } from "src/request/request.module";
 import { UserModule } from "src/user/user.module";
 import { Gateway } from "./gateway";
@@ -23,7 +24,8 @@ import { Gateway } from "./gateway";
         RequestModule,
         MessageModule,
         ChatModule,
-        UserModule
+        UserModule,
+        NotificationModule
     ],
     providers:[Gateway]
 })

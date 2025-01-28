@@ -23,13 +23,23 @@ export class NotificationService {
         private readonly AuthService: AuthService
     ){}
 
+    async getNotificationTokenById(id: string): Promise<string[]>{
+        try {
+            const deviceNotification = await this.DiviceModel.findById(id);
+            const token = deviceNotification.expo_push_token;
+            return token;
+        } catch (error) {
+            throw new Error(error.message);
+        }
+    }
+
     async registerToken(token: string, deviceToken: string, platform: string): Promise<string> {
         try {
-            const id = await this.AuthService.verifyToken(token);
-            if (!id) throw new Error('Token inválido');
-    
-            const userId = new Types.ObjectId(id);
-    
+            const response = await this.AuthService.verifyToken(token);
+            if (!response) throw new Error('Token inválido');
+            const userId = new Types.ObjectId(response._id);
+            
+            
             // Buscar un documento único
             let existUser = await this.DiviceModel.findOne({ user: userId });
     
@@ -54,6 +64,47 @@ export class NotificationService {
     }
     
     async sendNotificationToUser(
+        token: string,
+        title: string,
+        message: string,
+        data: any = {}
+    ): Promise<void> {
+        const authToken = await this.AuthService.verifyToken(token)
+        const id = new Types.ObjectId(authToken._id);
+        const userTokens = await this.DiviceModel.findOne({ user: id });
+    
+        if (!userTokens || userTokens.expo_push_token.length === 0) {
+            console.warn(`No se encontraron tokens para el usuario: ${id}`);
+            return;
+        }
+    
+        for (const token of userTokens.expo_push_token) {
+            try {
+                const notification = {
+                    to: token,
+                    sound: userTokens.platform === 'ios' ? 'default' : undefined,
+                    title,
+                    body: message,
+                    data,
+                };
+    
+                await this.createNotification(notification);
+            } catch (error) {
+                console.error(`Error enviando al token: ${token}`, error);
+    
+                // Eliminar el token si es inválido
+                if (error.response?.data?.error === 'DeviceNotRegistered') {
+                    console.log(`Eliminando token inválido: ${token}`);
+                    userTokens.expo_push_token = userTokens.expo_push_token.filter(
+                        (t) => t !== token,
+                    );
+                    await userTokens.save();
+                }
+            }
+        }
+    }
+    
+    async sendNotification(
         userId: Types.ObjectId,
         title: string,
         message: string,
@@ -91,6 +142,4 @@ export class NotificationService {
             }
         }
     }
-    
-    
 }
