@@ -25,7 +25,7 @@ export class NotificationService {
 
     async getNotificationTokenById(id: string): Promise<string[]>{
         try {
-            const deviceNotification = await this.DiviceModel.findById(id);
+            const deviceNotification = await this.DiviceModel.findOne({user: new Types.ObjectId(id)});
             const token = deviceNotification.expo_push_token;
             return token;
         } catch (error) {

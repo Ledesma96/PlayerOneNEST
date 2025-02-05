@@ -77,4 +77,8 @@ export class UpdateUserDTO {
     avatar?: string;
 
     birthday?
+
+    @IsOptional()
+    @IsBoolean()
+    online?: boolean;
 }

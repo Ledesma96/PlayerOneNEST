@@ -10,7 +10,11 @@ import { MessageModule } from "src/message/message.module";
 import { NotificationModule } from "src/notification/notification.module";
 import { RequestModule } from "src/request/request.module";
 import { UserModule } from "src/user/user.module";
-import { Gateway } from "./gateway";
+import { ConnectionEvents } from "./connection/connection.events";
+import { GameEvents } from "./game/game.events";
+import { GatewayService } from "./gateway.service";
+import { MessageEvents } from "./message/message.events";
+import { RequestEvents } from "./request/request.events";
 
 @Module({
     imports:[
@@ -25,9 +29,21 @@ import { Gateway } from "./gateway";
         MessageModule,
         ChatModule,
         UserModule,
-        NotificationModule
+        NotificationModule,
     ],
-    providers:[Gateway]
+    providers:[
+        GatewayService,
+        GameEvents,
+        ConnectionEvents,
+        MessageEvents,
+        RequestEvents
+    ],
+    exports: [
+        GameEvents,
+        ConnectionEvents,
+        MessageEvents,
+        RequestEvents
+    ]
 })
 
 export class GatewayModule{}

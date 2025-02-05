@@ -49,10 +49,10 @@ export class AuthService {
         
     }
 
-    async verifyToken(token: string): Promise<any> {
+    async verifyToken(token: string): Promise<{ _id: string }> {
         try {
             const decoded = await this.jwtService.verifyAsync(token)
-            return decoded
+            return decoded as { _id: string };
         } catch (error) {
             throw new Error('Token inválido o expirado');
         }

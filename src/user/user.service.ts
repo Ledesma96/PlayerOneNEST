@@ -6,6 +6,7 @@ import { User } from 'src/database/schemas/user.schema';
 import { MailerService } from 'src/mailer/mailer.service';
 import { UpdateUserDTO } from './DTO/updateUser.dto';
 import { UserDTO } from './DTO/user.dto';
+import { UserEntity } from './entity/user.entity';
 
 @Injectable()
 export class UserService {
@@ -232,6 +233,21 @@ export class UserService {
             return populate.invited_game
         } catch (error) {
             throw new Error(error)
+        }
+    }
+
+    async updateOnlineUser(id: string, data: any= {}): Promise<UserEntity> {
+        try {
+            if(data.online === 'false'){
+                data= {
+                    online: false,
+                    lastOnline: new Date()
+                }
+            }
+            const update = await this.UserModel.findOneAndUpdate(new mongoose.Types.ObjectId(id), data);
+            return update
+        } catch (error) {
+            throw error
         }
     }
 

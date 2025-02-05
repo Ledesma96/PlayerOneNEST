@@ -9,10 +9,10 @@ import { DmsModule } from './dms/dms.module';
 import { GameModule } from './game/game.module';
 import { MailerModule } from './mailer/mailer.module';
 import { MessageModule } from './message/message.module';
-import { RequestModule } from './request/request.module';
-import { GatewayModule } from './socket/request-gatway.module';
-import { UserModule } from './user/user.module';
 import { NotificationModule } from './notification/notification.module';
+import { RequestModule } from './request/request.module';
+import { GatewayModule } from './socket/request-gateway.module';
+import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
